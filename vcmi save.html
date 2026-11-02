@@ -1,0 +1,774 @@
+<title>Konwerter zapisów VCMI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow column like an adventure-map scroll panel — file, players, convert, then how-to. */
+:root {
+  --bg: #e9ecf2; --panel: #f7f8fb; --ink: #1b2234; --muted: #5a6378; --line: #c9cfdb;
+  --brass: #8a6416; --brass-soft: #f1e4c4; --ok: #2c7a45; --bad: #b3261e;
+  --display: "Alegreya SC", Georgia, serif; --body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11151f; --panel: #1a2030; --ink: #e7e9ef; --muted: #9aa3b8; --line: #2e3750;
+  --brass: #d9ad55; --brass-soft: #3a3020; --ok: #6cc58a; --bad: #f2867c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11151f; --panel: #1a2030; --ink: #e7e9ef; --muted: #9aa3b8; --line: #2e3750;
+  --brass: #d9ad55; --brass-soft: #3a3020; --ok: #6cc58a; --bad: #f2867c; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 17px/1.5 var(--body); }
+.wrap { max-width: 640px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 22px; }
+h1 { font: 700 2rem/1.1 var(--display); margin: 0; letter-spacing: .01em; text-wrap: balance; }
+h1 em { color: var(--brass); font-style: normal; }
+.topbar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: -10px; }
+.langlabel { font: 500 .72rem var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+select { font: 500 .95rem var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+select:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+h2 { font: 700 1.2rem/1.2 var(--display); margin: 0; letter-spacing: .03em; }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 60ch; }
+section { display: grid; gap: 12px; }
+.step { font: 500 .72rem var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--brass); }
+.drop { border: 2px dashed var(--line); border-radius: 10px; background: var(--panel); padding: 22px 16px;
+  text-align: center; cursor: pointer; transition: border-color .15s; }
+.drop:hover, .drop.over, .drop:focus-within { border-color: var(--brass); }
+.drop input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.drop strong { display: block; font-size: 1.05rem; }
+.drop small { color: var(--muted); }
+.fileinfo { font: .85rem var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+.players { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.tag { display: inline-block; font: 500 .7rem var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  background: var(--brass-soft); color: var(--brass); padding: 2px 8px; border-radius: 4px; }
+.row { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 12px;
+  padding: 11px 14px; border-top: 1px solid var(--line); cursor: pointer; }
+.row:first-child { border-top: 0; }
+.flag { width: 18px; height: 26px; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
+.who { min-width: 0; }
+.who b { font-weight: 700; }
+.who div { font-size: .88rem; color: var(--muted); overflow-wrap: anywhere; }
+.switch { display: flex; align-items: center; gap: 8px; font-size: .9rem; font-weight: 500; }
+.switch input { width: 20px; height: 20px; accent-color: var(--brass); margin: 0; }
+.was { font: .72rem var(--mono); color: var(--muted); }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+button { font: 700 1rem var(--body); background: var(--brass); color: var(--bg); border: 0; border-radius: 8px;
+  padding: 11px 20px; cursor: pointer; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, .drop:focus-within, .row:focus-within { outline: 2px solid var(--brass); outline-offset: 2px; }
+.msg { font-size: .95rem; margin: 0; }
+.msg.ok { color: var(--ok); } .msg.bad { color: var(--bad); }
+ol { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
+.paths { display: grid; gap: 6px; font-size: .9rem; }
+.paths div { display: grid; grid-template-columns: 80px 1fr; gap: 10px; }
+.paths code { font: .82rem var(--mono); overflow-wrap: anywhere; min-width: 0; }
+.note { font-size: .9rem; color: var(--muted); border-left: 3px solid var(--brass); padding-left: 12px; margin: 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<div class="wrap">
+  <div class="topbar">
+    <label for="lang" class="langlabel">Language</label>
+    <select id="lang"></select>
+  </div>
+  <header>
+    <h1 id="h1"></h1>
+    <p class="lede" data-t="lede"></p>
+  </header>
+
+  <section>
+    <div class="step" data-t="step1"></div>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".vsgm1,.VSGM1">
+      <strong data-t="pick"></strong>
+      <small data-t="pickHint"></small>
+    </label>
+    <div class="fileinfo" id="fileinfo"></div>
+  </section>
+
+  <section>
+    <div class="step" data-t="step2"></div>
+    <div class="players" id="players"></div>
+  </section>
+
+  <section>
+    <div class="step" data-t="step3"></div>
+    <div class="actions">
+      <button id="go" disabled data-t="convert"></button>
+      <span id="count" class="was"></span>
+    </div>
+    <p class="msg" id="msg" hidden></p>
+  </section>
+
+  <section>
+    <h2 data-t="howTitle"></h2>
+    <ol>
+      <li data-h="how1"></li>
+      <li data-h="how2"></li>
+      <li data-h="how3"></li>
+    </ol>
+    <div class="paths">
+      <div><b>Windows</b><code id="winpath"></code></div>
+      <div><b>Linux</b><code>~/.local/share/vcmi/Saves</code></div>
+      <div><b>macOS</b><code>~/Library/Application Support/vcmi/Saves</code></div>
+      <div><b>Android</b><code>Android/data/is.xyz.vcmi/files/vcmi-data/Saves</code></div>
+    </div>
+    <p class="note" data-t="note"></p>
+  </section>
+</div>
+<script>
+// VCMI save converter core: single player save -> multiplayer save.
+// Supports legacy raw saves (VCMI 1.7.x) and chunked saves (VCMI 1.8 / develop).
+(function (global) {
+  'use strict';
+
+  const COLOR_HEX = ['#e2312b', '#2f5fd8', '#a77a4c', '#2f9e44', '#f08c00', '#8e44ad', '#12a4a4', '#e64980'];
+
+  class Reader {
+    constructor(buf, pos) { this.b = buf; this.p = pos; }
+    byte() {
+      if (this.p >= this.b.length) throw new Error('eof');
+      return this.b[this.p++];
+    }
+    // VCMI BinarySerializer::saveEncodedInteger
+    int() {
+      let value = 0, mul = 1;
+      for (let i = 0; i < 10; i++) {
+        const b = this.byte();
+        if (b & 0x80) { value += (b & 0x7f) * mul; mul *= 128; }
+        else {
+          value += (b & 0x3f) * mul;
+          return (b & 0x40) ? -value : value;
+        }
+      }
+      throw new Error('bad int');
+    }
+    // strings are deduplicated: negative length = reference to earlier string
+    str(asciiOnly) {
+      const n = this.int();
+      if (n === 0) return '';
+      if (n < 0) return null; // back-reference, content unknown here
+      if (n > 4096 || this.p + n > this.b.length) throw new Error('bad str');
+      const bytes = this.b.subarray(this.p, this.p + n);
+      this.p += n;
+      if (asciiOnly) {
+        for (const c of bytes) if (c < 0x20 || c > 0x7e) throw new Error('bad ident');
+      }
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    }
+  }
+
+  function encodeInt(value) {
+    const out = [];
+    let u = Math.abs(value);
+    while (u > 0x3f) { out.push((u % 128) | 0x80); u = Math.floor(u / 128); }
+    let last = u & 0x3f;
+    if (value < 0) last |= 0x40;
+    out.push(last);
+    return out;
+  }
+
+  // ResourceSet layouts seen in different save versions
+  const HANDICAP_FORMATS = [
+    function vector(r) { const n = r.int(); if (n < 0 || n > 32) throw 0; for (let i = 0; i < n; i++) r.int(); },
+    function sparseMap(r) {
+      const n = r.int(); if (n < 0 || n > 32) throw 0;
+      let prev = -1;
+      for (let i = 0; i < n; i++) { const k = r.int(); if (k <= prev || k > 63) throw 0; prev = k; r.int(); }
+    },
+    function array8(r) { for (let i = 0; i < 8; i++) r.int(); },
+  ];
+
+  function plausibleStartTime(t) { return t >= 946684800 && t <= 4102444800; }
+
+  // Parses map<PlayerColor, PlayerSettings> entries starting at pos. Returns list or null.
+  function parseEntries(buf, pos, remaining, prevKey) {
+    if (remaining === 0) {
+      try {
+        const r = new Reader(buf, pos);
+        if (!plausibleStartTime(r.int())) return null;
+        return [];
+      } catch (e) { return null; }
+    }
+    let r, key, entry;
+    try {
+      r = new Reader(buf, pos);
+      key = r.int();
+      if (key <= prevKey || key > 7) return null;
+      const castle = r.str(true), hero = r.str(true), portrait = r.str(true), heroText = r.str(true);
+      const bonus = r.int();
+      if (bonus < -1 || bonus > 2) return null;
+      if (r.int() !== key) return null;
+      entry = { color: key, castle, hero, portrait, heroText, start: pos };
+    } catch (e) { return null; }
+    const afterColor = r.p;
+
+    for (const fmt of HANDICAP_FORMATS) {
+      try {
+        const rr = new Reader(buf, afterColor);
+        fmt(rr);
+        const inc = rr.int(), gro = rr.int();
+        if (inc < 0 || inc > 10000 || gro < 0 || gro > 10000) continue;
+        const name = rr.str(false);
+        const setStart = rr.p;
+        const cnt = rr.int();
+        if (cnt < 0 || cnt > 8) continue;
+        const ids = [];
+        for (let i = 0; i < cnt; i++) { const id = rr.int(); if (id < 1 || id > 64) throw 0; ids.push(id); }
+        const comp = rr.byte();
+        if (comp > 1) continue;
+        const end = rr.p;
+        const rest = parseEntries(buf, end, remaining - 1, key);
+        if (!rest) continue;
+        return [Object.assign(entry, { name, setStart, setEnd: end, ids, compOnly: comp === 1, human: ids.length > 0 }), ...rest];
+      } catch (e) { /* try next layout */ }
+    }
+    return null;
+  }
+
+  // Finds StartInfo (mode, difficulty, playerInfos...) inside a serialized block.
+  function findStartInfo(buf, from) {
+    for (let s = from || 0; s < buf.length - 8; s++) {
+      const mode = buf[s];
+      if (mode > 2) continue;
+      const diff = buf[s + 1];
+      if (diff > 4) continue;
+      const n = buf[s + 2];
+      if (n < 1 || n > 8) continue;
+      const players = parseEntries(buf, s + 3, n, -1);
+      if (players) return { offset: s, mode, difficulty: diff, players };
+    }
+    return null;
+  }
+
+  function u32(buf, p) { return (buf[p] | (buf[p + 1] << 8) | (buf[p + 2] << 16) | (buf[p + 3] << 24)) >>> 0; }
+  function putU32(arr, v) { arr.push(v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff); }
+  function ascii(buf, p, n) { return String.fromCharCode(...buf.subarray(p, p + n)); }
+
+  async function zlibInflate(data) {
+    const ds = new DecompressionStream('deflate');
+    const out = await new Response(new Blob([data]).stream().pipeThrough(ds)).arrayBuffer();
+    return new Uint8Array(out);
+  }
+  async function zlibDeflate(data) {
+    const cs = new CompressionStream('deflate');
+    const out = await new Response(new Blob([data]).stream().pipeThrough(cs)).arrayBuffer();
+    return new Uint8Array(out);
+  }
+
+  // Reads a save and returns a description used both for display and for converting.
+  async function analyze(fileBytes) {
+    const buf = fileBytes instanceof Uint8Array ? fileBytes : new Uint8Array(fileBytes);
+    if (buf.length < 16 || ascii(buf, 0, 4) !== 'VCMI') throw new Error('notVcmi');
+    const version = u32(buf, 4);
+
+    if (ascii(buf, 8, 7) === 'VCMISVG') {
+      const si = findStartInfo(buf, 15);
+      if (!si) throw new Error('noPlayersOld');
+      return { format: 'legacy', version, buf, si, meta: null };
+    }
+
+    if (ascii(buf, 8, 4) === 'META') {
+      const chunks = [];
+      let p = 8;
+      for (const id of ['META', 'HEAD', 'GAME']) {
+        if (ascii(buf, p, 4) !== id) throw new Error('corrupt');
+        const csize = u32(buf, p + 4), usize = u32(buf, p + 8);
+        const raw = buf.subarray(p + 12, p + 12 + csize);
+        if (raw.length !== csize) throw new Error('truncated');
+        chunks.push({ id, start: p, end: p + 12 + csize, raw, usize });
+        p += 12 + csize;
+      }
+      const metaBytes = await zlibInflate(chunks[0].raw);
+      const meta = JSON.parse(new TextDecoder().decode(metaBytes));
+      const head = await zlibInflate(chunks[1].raw);
+      const si = findStartInfo(head, 0);
+      if (!si) throw new Error('noPlayers');
+      return { format: 'chunked', version, buf, si, meta, chunks, head, tail: buf.subarray(p) };
+    }
+
+    throw new Error('unknownFormat');
+  }
+
+  // Rewrites connectedPlayerIDs (+compOnly) so that chosen colors are human.
+  function patchPlayers(block, players, humanColors) {
+    const edits = [];
+    let nextId = 1;
+    for (const pl of players) {
+      const human = humanColors.includes(pl.color);
+      const bytes = [];
+      if (human) bytes.push(...encodeInt(1), ...encodeInt(nextId++));
+      else bytes.push(...encodeInt(0));
+      bytes.push(0); // compOnly = false (true would force AI on load)
+      edits.push({ start: pl.setStart, end: pl.setEnd, bytes });
+    }
+    edits.sort((a, b) => a.start - b.start);
+    const parts = [];
+    let pos = 0;
+    for (const e of edits) {
+      parts.push(block.subarray(pos, e.start), Uint8Array.from(e.bytes));
+      pos = e.end;
+    }
+    parts.push(block.subarray(pos));
+    return concat(parts);
+  }
+
+  function concat(parts) {
+    const total = parts.reduce((s, x) => s + x.length, 0);
+    const out = new Uint8Array(total);
+    let p = 0;
+    for (const x of parts) { out.set(x, p); p += x.length; }
+    return out;
+  }
+
+  async function convert(info, humanColors) {
+    if (humanColors.length < 2) throw new Error('needTwo');
+    if (info.format === 'legacy') return patchPlayers(info.buf, info.si.players, humanColors);
+
+    const head = patchPlayers(info.head, info.si.players, humanColors);
+    const meta = JSON.parse(JSON.stringify(info.meta));
+    meta.game = meta.game || {};
+    meta.game.humanPlayers = humanColors.length;
+    if (meta.game.mode === 'tutorial') meta.game.mode = 'single';
+    const metaBytes = new TextEncoder().encode(JSON.stringify(meta, null, '\t'));
+
+    const parts = [info.buf.subarray(0, 8)];
+    for (const [id, data] of [['META', metaBytes], ['HEAD', head]]) {
+      const comp = await zlibDeflate(data);
+      const hdr = [...id].map(c => c.charCodeAt(0));
+      putU32(hdr, comp.length);
+      putU32(hdr, data.length);
+      parts.push(Uint8Array.from(hdr), comp);
+    }
+    const game = info.chunks[2];
+    parts.push(info.buf.subarray(game.start, game.end), info.tail);
+    return concat(parts);
+  }
+
+  const api = { analyze, convert, findStartInfo, encodeInt, COLOR_HEX };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else global.VcmiConv = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script><script>
+window.I18N = {
+  en: {
+    name: 'English', title: 'VCMI Save Converter', h1: 'Save converter',
+    lede: 'Turns a Heroes III (VCMI) single player save into a multiplayer save. You choose which colors are played by people; the rest stay with the computer. The file never leaves your device.',
+    step1: 'Step 1 · saved game', pick: 'Choose a .vsgm1 file', pickHint: 'or drop it here · VCMI 1.7 and newer',
+    noFile: 'No file chosen. Below is an example list of players.',
+    step2: 'Step 2 · who is human', step3: 'Step 3 · convert', sample: 'Example', human: 'Human',
+    now: 'now', isHuman: 'human', isAI: 'computer', convert: 'Convert and save',
+    needTwoHint: 'Tick at least 2 colors', nHumans: n => n + ' human players',
+    players: n => n + ' players', map: 'map', day: 'day', converting: 'Converting…',
+    savedZip: (zip, f) => 'Saved ' + zip + '. Unzip it and put ' + f + ' in the Saves folder.',
+    declined: 'File saving was cancelled.', saveFailed: c => 'Could not save the file (' + c + ').',
+    done: f => 'Done: ' + f + '. Put it in the Saves folder.',
+    howTitle: 'How to play the converted save',
+    how1: 'Put the new <code>…_MP.vsgm1</code> file in the VCMI saves folder (if it downloaded as a .zip, unzip it first).',
+    how2: 'In VCMI choose <b>Multiplayer</b> (hot-seat, LAN or online), create a room, then choose <b>Load game</b>.',
+    how3: 'When friends join, the human colors are given to players in order. The host can swap them by clicking the flag next to a color.',
+    note: 'All players need the same VCMI version and the same mods. The original save stays untouched; the tool creates a new file next to it.',
+    docs: 'Documents',
+    colors: ['Red', 'Blue', 'Tan', 'Green', 'Orange', 'Purple', 'Teal', 'Pink'],
+    err: {
+      notVcmi: 'This is not a VCMI saved game (no "VCMI" header).',
+      noPlayersOld: 'Could not find the player list in this save. The VCMI version may be too old (supported: 1.7 and newer).',
+      noPlayers: 'Could not find the player list in this save.',
+      corrupt: 'The save file is damaged (a section is missing).', truncated: 'The save file is cut off.',
+      unknownFormat: 'Unknown VCMI save format.', needTwo: 'Choose at least two human players.',
+    },
+  },
+  pl: {
+    name: 'Polski', title: 'Konwerter zapisów VCMI', h1: 'Konwerter zapisów',
+    lede: 'Zamienia zapis gry jednoosobowej z Heroes III (VCMI) w zapis wieloosobowy. Wybierasz, którymi kolorami grają ludzie, a reszta zostaje przy komputerze. Plik nie opuszcza Twojego urządzenia.',
+    step1: 'Krok 1 · zapis gry', pick: 'Wybierz plik .vsgm1', pickHint: 'albo upuść go tutaj · VCMI 1.7 i nowsze',
+    noFile: 'Nie wybrano pliku. Poniżej przykładowa lista graczy.',
+    step2: 'Krok 2 · kto gra człowiekiem', step3: 'Krok 3 · konwersja', sample: 'Przykład', human: 'Człowiek',
+    now: 'teraz', isHuman: 'człowiek', isAI: 'komputer', convert: 'Konwertuj i zapisz',
+    needTwoHint: 'Zaznacz co najmniej 2 kolory', nHumans: n => 'Graczy-ludzi: ' + n,
+    players: n => 'graczy: ' + n, map: 'mapa', day: 'dzień', converting: 'Konwertuję…',
+    savedZip: (zip, f) => 'Zapisano ' + zip + '. Rozpakuj go i wrzuć ' + f + ' do folderu Saves.',
+    declined: 'Anulowano zapis pliku.', saveFailed: c => 'Nie udało się zapisać pliku (' + c + ').',
+    done: f => 'Gotowe: ' + f + '. Wrzuć go do folderu Saves.',
+    howTitle: 'Jak zagrać w przekonwertowany zapis',
+    how1: 'Wrzuć nowy plik <code>…_MP.vsgm1</code> do folderu zapisów VCMI (jeśli pobrał się jako .zip, najpierw go rozpakuj).',
+    how2: 'W VCMI wybierz <b>Gra wieloosobowa</b> (hot-seat, LAN albo online), utwórz pokój i dopiero wtedy <b>Wczytaj grę</b>.',
+    how3: 'Gdy znajomi dołączą, kolory-ludzi dostają się graczom po kolei. Host może je zamienić, klikając flagę przy kolorze.',
+    note: 'Wszyscy gracze muszą mieć tę samą wersję VCMI i te same mody. Oryginalny zapis zostaje nietknięty, a narzędzie tworzy nowy plik obok.',
+    docs: 'Dokumenty',
+    colors: ['Czerwony', 'Niebieski', 'Brązowy', 'Zielony', 'Pomarańczowy', 'Fioletowy', 'Turkusowy', 'Różowy'],
+    err: {
+      notVcmi: 'To nie jest zapis gry VCMI (brak nagłówka "VCMI").',
+      noPlayersOld: 'Nie udało się znaleźć listy graczy w zapisie. Możliwe, że wersja VCMI jest zbyt stara (obsługiwane: 1.7 i nowsze).',
+      noPlayers: 'Nie udało się znaleźć listy graczy w zapisie.',
+      corrupt: 'Plik zapisu jest uszkodzony (brakuje sekcji).', truncated: 'Plik zapisu jest ucięty.',
+      unknownFormat: 'Nieznany format zapisu VCMI.', needTwo: 'Wybierz co najmniej dwóch graczy-ludzi.',
+    },
+  },
+  de: {
+    name: 'Deutsch', title: 'VCMI-Spielstandkonverter', h1: 'Spielstandkonverter',
+    lede: 'Macht aus einem Einzelspieler-Spielstand von Heroes III (VCMI) einen Mehrspieler-Spielstand. Du wählst, welche Farben von Menschen gespielt werden; der Rest bleibt beim Computer. Die Datei verlässt dein Gerät nicht.',
+    step1: 'Schritt 1 · Spielstand', pick: '.vsgm1-Datei wählen', pickHint: 'oder hierher ziehen · VCMI 1.7 und neuer',
+    noFile: 'Keine Datei gewählt. Unten eine Beispielliste der Spieler.',
+    step2: 'Schritt 2 · wer ist Mensch', step3: 'Schritt 3 · umwandeln', sample: 'Beispiel', human: 'Mensch',
+    now: 'jetzt', isHuman: 'Mensch', isAI: 'Computer', convert: 'Umwandeln und speichern',
+    needTwoHint: 'Mindestens 2 Farben ankreuzen', nHumans: n => n + ' menschliche Spieler',
+    players: n => n + ' Spieler', map: 'Karte', day: 'Tag', converting: 'Wird umgewandelt…',
+    savedZip: (zip, f) => zip + ' gespeichert. Entpacke es und lege ' + f + ' in den Ordner Saves.',
+    declined: 'Speichern abgebrochen.', saveFailed: c => 'Datei konnte nicht gespeichert werden (' + c + ').',
+    done: f => 'Fertig: ' + f + '. Lege die Datei in den Ordner Saves.',
+    howTitle: 'So spielst du den umgewandelten Spielstand',
+    how1: 'Lege die neue Datei <code>…_MP.vsgm1</code> in den VCMI-Ordner für Spielstände (kam sie als .zip, entpacke sie zuerst).',
+    how2: 'Wähle in VCMI <b>Mehrspieler</b> (Hot-Seat, LAN oder online), erstelle einen Raum und wähle dann <b>Spiel laden</b>.',
+    how3: 'Wenn Freunde beitreten, werden die menschlichen Farben der Reihe nach vergeben. Der Host kann sie per Klick auf die Flagge tauschen.',
+    note: 'Alle Spieler brauchen dieselbe VCMI-Version und dieselben Mods. Der Original-Spielstand bleibt unverändert; das Tool erzeugt eine neue Datei.',
+    docs: 'Dokumente',
+    colors: ['Rot', 'Blau', 'Braun', 'Grün', 'Orange', 'Lila', 'Türkis', 'Rosa'],
+    err: {
+      notVcmi: 'Das ist kein VCMI-Spielstand (Kopfzeile "VCMI" fehlt).',
+      noPlayersOld: 'Spielerliste im Spielstand nicht gefunden. Vielleicht ist die VCMI-Version zu alt (unterstützt: 1.7 und neuer).',
+      noPlayers: 'Spielerliste im Spielstand nicht gefunden.',
+      corrupt: 'Der Spielstand ist beschädigt (ein Abschnitt fehlt).', truncated: 'Der Spielstand ist unvollständig.',
+      unknownFormat: 'Unbekanntes VCMI-Spielstandformat.', needTwo: 'Wähle mindestens zwei menschliche Spieler.',
+    },
+  },
+  fr: {
+    name: 'Français', title: 'Convertisseur de sauvegardes VCMI', h1: 'Convertisseur de sauvegardes',
+    lede: 'Transforme une sauvegarde solo de Heroes III (VCMI) en sauvegarde multijoueur. Vous choisissez quelles couleurs sont jouées par des humains ; les autres restent à l’ordinateur. Le fichier ne quitte pas votre appareil.',
+    step1: 'Étape 1 · sauvegarde', pick: 'Choisir un fichier .vsgm1', pickHint: 'ou le déposer ici · VCMI 1.7 et plus récent',
+    noFile: 'Aucun fichier choisi. Voici un exemple de liste de joueurs.',
+    step2: 'Étape 2 · qui est humain', step3: 'Étape 3 · conversion', sample: 'Exemple', human: 'Humain',
+    now: 'actuellement', isHuman: 'humain', isAI: 'ordinateur', convert: 'Convertir et enregistrer',
+    needTwoHint: 'Cochez au moins 2 couleurs', nHumans: n => n + ' joueurs humains',
+    players: n => n + ' joueurs', map: 'carte', day: 'jour', converting: 'Conversion…',
+    savedZip: (zip, f) => zip + ' enregistré. Décompressez-le et placez ' + f + ' dans le dossier Saves.',
+    declined: 'Enregistrement annulé.', saveFailed: c => 'Impossible d’enregistrer le fichier (' + c + ').',
+    done: f => 'Terminé : ' + f + '. Placez-le dans le dossier Saves.',
+    howTitle: 'Jouer la sauvegarde convertie',
+    how1: 'Placez le nouveau fichier <code>…_MP.vsgm1</code> dans le dossier des sauvegardes de VCMI (s’il est arrivé en .zip, décompressez-le d’abord).',
+    how2: 'Dans VCMI, choisissez <b>Multijoueur</b> (hot-seat, LAN ou en ligne), créez une salle, puis <b>Charger une partie</b>.',
+    how3: 'Quand les amis rejoignent, les couleurs humaines leur sont attribuées dans l’ordre. L’hôte peut les échanger en cliquant sur le drapeau d’une couleur.',
+    note: 'Tous les joueurs doivent avoir la même version de VCMI et les mêmes mods. La sauvegarde d’origine reste intacte ; l’outil crée un nouveau fichier.',
+    docs: 'Documents',
+    colors: ['Rouge', 'Bleu', 'Brun', 'Vert', 'Orange', 'Violet', 'Turquoise', 'Rose'],
+    err: {
+      notVcmi: 'Ce n’est pas une sauvegarde VCMI (en-tête "VCMI" absent).',
+      noPlayersOld: 'Liste des joueurs introuvable. La version de VCMI est peut-être trop ancienne (prise en charge : 1.7 et plus).',
+      noPlayers: 'Liste des joueurs introuvable dans la sauvegarde.',
+      corrupt: 'La sauvegarde est endommagée (une section manque).', truncated: 'La sauvegarde est tronquée.',
+      unknownFormat: 'Format de sauvegarde VCMI inconnu.', needTwo: 'Choisissez au moins deux joueurs humains.',
+    },
+  },
+  es: {
+    name: 'Español', title: 'Conversor de partidas VCMI', h1: 'Conversor de partidas',
+    lede: 'Convierte una partida guardada de un jugador de Heroes III (VCMI) en una partida multijugador. Eliges qué colores juegan personas; el resto sigue en manos del ordenador. El archivo no sale de tu dispositivo.',
+    step1: 'Paso 1 · partida guardada', pick: 'Elegir archivo .vsgm1', pickHint: 'o suéltalo aquí · VCMI 1.7 y posteriores',
+    noFile: 'No hay archivo. Abajo, una lista de jugadores de ejemplo.',
+    step2: 'Paso 2 · quién es humano', step3: 'Paso 3 · convertir', sample: 'Ejemplo', human: 'Humano',
+    now: 'ahora', isHuman: 'humano', isAI: 'ordenador', convert: 'Convertir y guardar',
+    needTwoHint: 'Marca al menos 2 colores', nHumans: n => n + ' jugadores humanos',
+    players: n => n + ' jugadores', map: 'mapa', day: 'día', converting: 'Convirtiendo…',
+    savedZip: (zip, f) => 'Guardado ' + zip + '. Descomprímelo y pon ' + f + ' en la carpeta Saves.',
+    declined: 'Guardado cancelado.', saveFailed: c => 'No se pudo guardar el archivo (' + c + ').',
+    done: f => 'Listo: ' + f + '. Ponlo en la carpeta Saves.',
+    howTitle: 'Cómo jugar la partida convertida',
+    how1: 'Pon el nuevo archivo <code>…_MP.vsgm1</code> en la carpeta de partidas de VCMI (si llegó como .zip, descomprímelo antes).',
+    how2: 'En VCMI elige <b>Multijugador</b> (hot-seat, LAN u online), crea una sala y luego <b>Cargar partida</b>.',
+    how3: 'Cuando se unan tus amigos, los colores humanos se asignan por orden. El anfitrión puede cambiarlos pulsando la bandera de cada color.',
+    note: 'Todos necesitan la misma versión de VCMI y los mismos mods. La partida original no se toca; la herramienta crea un archivo nuevo.',
+    docs: 'Documentos',
+    colors: ['Rojo', 'Azul', 'Marrón', 'Verde', 'Naranja', 'Morado', 'Turquesa', 'Rosa'],
+    err: {
+      notVcmi: 'No es una partida guardada de VCMI (falta la cabecera "VCMI").',
+      noPlayersOld: 'No se encontró la lista de jugadores. Puede que la versión de VCMI sea demasiado antigua (compatible: 1.7 y posteriores).',
+      noPlayers: 'No se encontró la lista de jugadores en la partida.',
+      corrupt: 'La partida está dañada (falta una sección).', truncated: 'La partida está incompleta.',
+      unknownFormat: 'Formato de partida VCMI desconocido.', needTwo: 'Elige al menos dos jugadores humanos.',
+    },
+  },
+  ru: {
+    name: 'Русский', title: 'Конвертер сохранений VCMI', h1: 'Конвертер сохранений',
+    lede: 'Превращает одиночное сохранение Heroes III (VCMI) в сохранение для сетевой игры. Вы выбираете, какими цветами играют люди; остальные остаются за компьютером. Файл не покидает ваше устройство.',
+    step1: 'Шаг 1 · сохранение', pick: 'Выбрать файл .vsgm1', pickHint: 'или перетащите сюда · VCMI 1.7 и новее',
+    noFile: 'Файл не выбран. Ниже пример списка игроков.',
+    step2: 'Шаг 2 · кто играет человеком', step3: 'Шаг 3 · конвертация', sample: 'Пример', human: 'Человек',
+    now: 'сейчас', isHuman: 'человек', isAI: 'компьютер', convert: 'Конвертировать и сохранить',
+    needTwoHint: 'Отметьте минимум 2 цвета', nHumans: n => 'Игроков-людей: ' + n,
+    players: n => 'игроков: ' + n, map: 'карта', day: 'день', converting: 'Конвертирую…',
+    savedZip: (zip, f) => 'Сохранено: ' + zip + '. Распакуйте и положите ' + f + ' в папку Saves.',
+    declined: 'Сохранение отменено.', saveFailed: c => 'Не удалось сохранить файл (' + c + ').',
+    done: f => 'Готово: ' + f + '. Положите его в папку Saves.',
+    howTitle: 'Как играть в конвертированное сохранение',
+    how1: 'Положите новый файл <code>…_MP.vsgm1</code> в папку сохранений VCMI (если он скачался как .zip, сначала распакуйте).',
+    how2: 'В VCMI выберите <b>Сетевая игра</b> (hot-seat, LAN или онлайн), создайте комнату и затем <b>Загрузить игру</b>.',
+    how3: 'Когда друзья подключатся, цвета людей раздаются игрокам по порядку. Хост может поменять их, нажав на флаг цвета.',
+    note: 'У всех игроков должна быть одна версия VCMI и одинаковые моды. Исходное сохранение не меняется; инструмент создаёт новый файл.',
+    docs: 'Документы',
+    colors: ['Красный', 'Синий', 'Коричневый', 'Зелёный', 'Оранжевый', 'Фиолетовый', 'Бирюзовый', 'Розовый'],
+    err: {
+      notVcmi: 'Это не сохранение VCMI (нет заголовка "VCMI").',
+      noPlayersOld: 'Не удалось найти список игроков. Возможно, версия VCMI слишком старая (поддерживается 1.7 и новее).',
+      noPlayers: 'Не удалось найти список игроков в сохранении.',
+      corrupt: 'Сохранение повреждено (нет раздела).', truncated: 'Файл сохранения обрезан.',
+      unknownFormat: 'Неизвестный формат сохранения VCMI.', needTwo: 'Выберите хотя бы двух игроков-людей.',
+    },
+  },
+  uk: {
+    name: 'Українська', title: 'Конвертер збережень VCMI', h1: 'Конвертер збережень',
+    lede: 'Перетворює одиночне збереження Heroes III (VCMI) на збереження для мережевої гри. Ви обираєте, якими кольорами грають люди; решта лишається за комп’ютером. Файл не залишає ваш пристрій.',
+    step1: 'Крок 1 · збереження', pick: 'Обрати файл .vsgm1', pickHint: 'або перетягніть сюди · VCMI 1.7 і новіші',
+    noFile: 'Файл не обрано. Нижче приклад списку гравців.',
+    step2: 'Крок 2 · хто грає людиною', step3: 'Крок 3 · конвертація', sample: 'Приклад', human: 'Людина',
+    now: 'зараз', isHuman: 'людина', isAI: 'комп’ютер', convert: 'Конвертувати і зберегти',
+    needTwoHint: 'Позначте щонайменше 2 кольори', nHumans: n => 'Гравців-людей: ' + n,
+    players: n => 'гравців: ' + n, map: 'мапа', day: 'день', converting: 'Конвертую…',
+    savedZip: (zip, f) => 'Збережено: ' + zip + '. Розпакуйте і покладіть ' + f + ' у теку Saves.',
+    declined: 'Збереження скасовано.', saveFailed: c => 'Не вдалося зберегти файл (' + c + ').',
+    done: f => 'Готово: ' + f + '. Покладіть його в теку Saves.',
+    howTitle: 'Як грати в конвертоване збереження',
+    how1: 'Покладіть новий файл <code>…_MP.vsgm1</code> у теку збережень VCMI (якщо він завантажився як .zip, спершу розпакуйте).',
+    how2: 'У VCMI оберіть <b>Мережева гра</b> (hot-seat, LAN або онлайн), створіть кімнату, а потім <b>Завантажити гру</b>.',
+    how3: 'Коли друзі під’єднаються, кольори людей роздаються гравцям по черзі. Хост може їх поміняти, натиснувши прапор кольору.',
+    note: 'Усі гравці мають мати однакову версію VCMI та однакові моди. Оригінальне збереження не змінюється; інструмент створює новий файл.',
+    docs: 'Документи',
+    colors: ['Червоний', 'Синій', 'Коричневий', 'Зелений', 'Помаранчевий', 'Фіолетовий', 'Бірюзовий', 'Рожевий'],
+    err: {
+      notVcmi: 'Це не збереження VCMI (немає заголовка "VCMI").',
+      noPlayersOld: 'Не вдалося знайти список гравців. Можливо, версія VCMI застара (підтримуються 1.7 і новіші).',
+      noPlayers: 'Не вдалося знайти список гравців у збереженні.',
+      corrupt: 'Збереження пошкоджене (бракує розділу).', truncated: 'Файл збереження обрізаний.',
+      unknownFormat: 'Невідомий формат збереження VCMI.', needTwo: 'Оберіть щонайменше двох гравців-людей.',
+    },
+  },
+  cs: {
+    name: 'Čeština', title: 'Převodník uložených her VCMI', h1: 'Převodník uložených her',
+    lede: 'Převede uloženou hru jednoho hráče z Heroes III (VCMI) na uloženou hru pro více hráčů. Vybereš, které barvy hrají lidé; zbytek zůstane počítači. Soubor neopustí tvoje zařízení.',
+    step1: 'Krok 1 · uložená hra', pick: 'Vybrat soubor .vsgm1', pickHint: 'nebo ho sem přetáhni · VCMI 1.7 a novější',
+    noFile: 'Není vybrán soubor. Níže je ukázkový seznam hráčů.',
+    step2: 'Krok 2 · kdo je člověk', step3: 'Krok 3 · převod', sample: 'Ukázka', human: 'Člověk',
+    now: 'nyní', isHuman: 'člověk', isAI: 'počítač', convert: 'Převést a uložit',
+    needTwoHint: 'Zaškrtni aspoň 2 barvy', nHumans: n => 'Lidských hráčů: ' + n,
+    players: n => 'hráčů: ' + n, map: 'mapa', day: 'den', converting: 'Převádím…',
+    savedZip: (zip, f) => 'Uloženo ' + zip + '. Rozbal ho a vlož ' + f + ' do složky Saves.',
+    declined: 'Uložení bylo zrušeno.', saveFailed: c => 'Soubor se nepodařilo uložit (' + c + ').',
+    done: f => 'Hotovo: ' + f + '. Vlož ho do složky Saves.',
+    howTitle: 'Jak hrát převedenou hru',
+    how1: 'Vlož nový soubor <code>…_MP.vsgm1</code> do složky s uloženými hrami VCMI (pokud přišel jako .zip, nejdřív ho rozbal).',
+    how2: 'Ve VCMI zvol <b>Více hráčů</b> (hot-seat, LAN nebo online), vytvoř místnost a pak <b>Nahrát hru</b>.',
+    how3: 'Když se přátelé připojí, lidské barvy se rozdají hráčům popořadě. Hostitel je může prohodit kliknutím na vlajku barvy.',
+    note: 'Všichni hráči potřebují stejnou verzi VCMI a stejné mody. Původní uložená hra zůstane beze změny; nástroj vytvoří nový soubor.',
+    docs: 'Dokumenty',
+    colors: ['Červená', 'Modrá', 'Hnědá', 'Zelená', 'Oranžová', 'Fialová', 'Tyrkysová', 'Růžová'],
+    err: {
+      notVcmi: 'Toto není uložená hra VCMI (chybí hlavička "VCMI").',
+      noPlayersOld: 'Seznam hráčů se nepodařilo najít. Verze VCMI je možná příliš stará (podporováno: 1.7 a novější).',
+      noPlayers: 'V uložené hře se nepodařilo najít seznam hráčů.',
+      corrupt: 'Uložená hra je poškozená (chybí sekce).', truncated: 'Soubor uložené hry je useknutý.',
+      unknownFormat: 'Neznámý formát uložené hry VCMI.', needTwo: 'Vyber aspoň dva lidské hráče.',
+    },
+  },
+  zh: {
+    name: '中文', title: 'VCMI 存档转换器', h1: '存档转换器',
+    lede: '把《英雄无敌 III》（VCMI）的单人存档转换为多人存档。你可以选择哪些颜色由真人玩家控制，其余的仍由电脑控制。文件不会离开你的设备。',
+    step1: '第 1 步 · 存档', pick: '选择 .vsgm1 文件', pickHint: '或拖放到这里 · VCMI 1.7 及以上',
+    noFile: '尚未选择文件。下面是示例玩家列表。',
+    step2: '第 2 步 · 谁是真人', step3: '第 3 步 · 转换', sample: '示例', human: '真人',
+    now: '当前', isHuman: '真人', isAI: '电脑', convert: '转换并保存',
+    needTwoHint: '至少勾选 2 种颜色', nHumans: n => '真人玩家：' + n,
+    players: n => n + ' 名玩家', map: '地图', day: '第几天', converting: '正在转换…',
+    savedZip: (zip, f) => '已保存 ' + zip + '。解压后将 ' + f + ' 放入 Saves 文件夹。',
+    declined: '已取消保存。', saveFailed: c => '无法保存文件（' + c + '）。',
+    done: f => '完成：' + f + '。请放入 Saves 文件夹。',
+    howTitle: '如何玩转换后的存档',
+    how1: '把新的 <code>…_MP.vsgm1</code> 文件放入 VCMI 存档文件夹（如果下载的是 .zip，请先解压）。',
+    how2: '在 VCMI 中选择<b>多人游戏</b>（热座、局域网或在线），创建房间，然后选择<b>读取游戏</b>。',
+    how3: '朋友加入后，真人颜色会按顺序分配给玩家。房主可以点击颜色旁的旗帜进行调换。',
+    note: '所有玩家需要相同的 VCMI 版本和相同的模组。原存档保持不变，工具会另外生成一个新文件。',
+    docs: 'Documents',
+    colors: ['红色', '蓝色', '棕色', '绿色', '橙色', '紫色', '青色', '粉色'],
+    err: {
+      notVcmi: '这不是 VCMI 存档（缺少 "VCMI" 文件头）。',
+      noPlayersOld: '在存档中找不到玩家列表。VCMI 版本可能太旧（支持 1.7 及以上）。',
+      noPlayers: '在存档中找不到玩家列表。',
+      corrupt: '存档已损坏（缺少某个部分）。', truncated: '存档文件不完整。',
+      unknownFormat: '未知的 VCMI 存档格式。', needTwo: '请至少选择两名真人玩家。',
+    },
+  },
+};
+</script><script>
+(function () {
+  const C = window.VcmiConv;
+  const $ = id => document.getElementById(id);
+  const L = window.I18N;
+  const state = { info: null, name: '', humans: [], sample: true, lang: 'en', msg: null, fileErr: false };
+
+  try { const saved = localStorage.getItem('vcmi-conv-lang'); if (saved && L[saved]) state.lang = saved; } catch (e) {}
+  const T = () => L[state.lang];
+
+  const SAMPLE = [
+    { color: 0, name: '', human: true }, { color: 1, name: '', human: false }, { color: 3, name: '', human: false },
+  ];
+
+  function applyLang() {
+    const t = T();
+    document.documentElement.lang = state.lang === 'zh' ? 'zh-CN' : state.lang;
+    document.title = t.title;
+    const h = $('h1'); h.textContent = '';
+    const [a, z] = t.title.split('VCMI');
+    const em = document.createElement('em'); em.textContent = 'VCMI';
+    h.append(a, em, z);
+    document.querySelectorAll('[data-t]').forEach(el => { el.textContent = t[el.dataset.t]; });
+    document.querySelectorAll('[data-h]').forEach(el => { el.innerHTML = t[el.dataset.h]; });
+    $('winpath').textContent = t.docs + '\\My Games\\vcmi\\Saves';
+    renderFileInfo();
+    render();
+    showMsg();
+  }
+
+  function renderFileInfo() {
+    const t = T(), info = state.info;
+    if (!state.name) { $('fileinfo').textContent = t.noFile; return; }
+    if (!info) { $('fileinfo').textContent = state.name; return; }
+    const g = info.meta && info.meta.game;
+    const map = g ? (g.mapFile || '').replace(/^Maps\//, '') : '';
+    $('fileinfo').textContent = state.name + ' · ' + t.players(info.si.players.length) +
+      (map ? ' · ' + t.map + ' ' + map : '') + (g && g.day ? ' · ' + t.day + ' ' + g.day : '');
+  }
+
+  function render() {
+    const t = T();
+    const list = state.info ? state.info.si.players : SAMPLE;
+    const box = $('players');
+    box.textContent = '';
+    if (state.sample) {
+      const r = document.createElement('div');
+      r.className = 'row'; r.style.cursor = 'default';
+      const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = t.sample;
+      r.append(document.createElement('span'), tag, document.createElement('span'));
+      box.appendChild(r);
+    }
+    for (const p of list) {
+      const row = document.createElement('label');
+      row.className = 'row';
+      const flag = document.createElement('span');
+      flag.className = 'flag'; flag.style.background = C.COLOR_HEX[p.color];
+      const who = document.createElement('span'); who.className = 'who';
+      const b = document.createElement('b'); b.textContent = t.colors[p.color];
+      const d = document.createElement('div');
+      d.textContent = (p.name ? p.name + ' · ' : '') + t.now + ': ' + (p.human ? t.isHuman : t.isAI);
+      who.append(b, d);
+      const sw = document.createElement('span'); sw.className = 'switch';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'p' + p.color;
+      cb.checked = state.sample ? p.human : state.humans.includes(p.color);
+      cb.disabled = state.sample;
+      cb.addEventListener('change', () => {
+        state.humans = cb.checked ? [...state.humans, p.color].sort() : state.humans.filter(c => c !== p.color);
+        update();
+      });
+      sw.append(cb, document.createTextNode(t.human));
+      row.append(flag, who, sw);
+      box.appendChild(row);
+    }
+    update();
+  }
+
+  function update() {
+    const n = state.humans.length, t = T();
+    $('count').textContent = state.sample ? '' : (n < 2 ? t.needTwoHint : t.nHumans(n));
+    $('go').disabled = state.sample || n < 2 || state.busy;
+  }
+
+  // messages are stored as (key, args) so they re-translate when the language changes
+  function msg(key, kind, ...args) { state.msg = key ? { key, kind, args } : null; showMsg(); }
+  function showMsg() {
+    const m = $('msg'), s = state.msg, t = T();
+    m.hidden = !s;
+    if (!s) return;
+    let text;
+    if (s.key.startsWith('err.')) text = t.err[s.key.slice(4)] || s.args[0] || s.key.slice(4);
+    else { const v = t[s.key]; text = typeof v === 'function' ? v(...s.args) : v; }
+    m.textContent = text;
+    m.className = 'msg ' + (s.kind || '');
+  }
+  function errMsg(e) { const code = e && e.message || String(e); msg('err.' + code, 'bad', code); }
+
+  async function load(file) {
+    msg(null);
+    state.name = file.name;
+    try {
+      const info = await C.analyze(new Uint8Array(await file.arrayBuffer()));
+      state.info = info; state.sample = false;
+      const pl = info.si.players;
+      state.humans = pl.filter(p => p.human).map(p => p.color);
+      if (state.humans.length < 2) {
+        const next = pl.find(p => !p.human);
+        if (next) state.humans = [...state.humans, next.color].sort();
+      }
+    } catch (e) {
+      state.info = null; state.sample = true; state.humans = [];
+      errMsg(e);
+    }
+    renderFileInfo();
+    render();
+  }
+
+  // minimal ZIP (stored) so the file can travel through hosts that only allow known extensions
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(d) { let c = 0xffffffff; for (let i = 0; i < d.length; i++) c = CRC[(c ^ d[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+  function zip(name, data) {
+    const nm = new TextEncoder().encode(name), crc = crc32(data), n = data.length;
+    const le = (a, v, b) => { for (let i = 0; i < b; i++) a.push((v >>> (8 * i)) & 0xff); };
+    const loc = []; le(loc, 0x04034b50, 4); le(loc, 20, 2); le(loc, 0x800, 2); le(loc, 0, 2); le(loc, 0, 4); le(loc, crc, 4); le(loc, n, 4); le(loc, n, 4); le(loc, nm.length, 2); le(loc, 0, 2);
+    const cen = []; le(cen, 0x02014b50, 4); le(cen, 20, 2); le(cen, 20, 2); le(cen, 0x800, 2); le(cen, 0, 2); le(cen, 0, 4); le(cen, crc, 4); le(cen, n, 4); le(cen, n, 4); le(cen, nm.length, 2); le(cen, 0, 2); le(cen, 0, 2); le(cen, 0, 2); le(cen, 0, 2); le(cen, 0, 4); le(cen, 0, 4);
+    const off = loc.length + nm.length + n;
+    const end = []; le(end, 0x06054b50, 4); le(end, 0, 2); le(end, 0, 2); le(end, 1, 2); le(end, 1, 2); le(end, cen.length + nm.length, 4); le(end, off, 4); le(end, 0, 2);
+    return new Blob([Uint8Array.from(loc), nm, data, Uint8Array.from(cen), nm, Uint8Array.from(end)]);
+  }
+
+  let downloads = null;
+  if (window.claude && window.claude.use) window.claude.use('downloads').then(d => { downloads = d; }, () => {});
+
+  async function go() {
+    msg('converting');
+    state.busy = true; update();
+    try {
+      const out = await C.convert(state.info, state.humans);
+      const base = state.name.replace(/\.vsgm1$/i, '');
+      const outName = base + '_MP.vsgm1';
+      if (downloads) {
+        try {
+          await downloads.save({ filename: base + '_MP.zip', data: zip(outName, out) });
+          msg('savedZip', 'ok', base + '_MP.zip', outName);
+        } catch (e) {
+          if (e && e.code === 'declined') msg('declined', 'bad');
+          else msg('saveFailed', 'bad', (e && e.code) || String(e));
+        }
+      } else {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([out]));
+        a.download = outName;
+        document.body.appendChild(a); a.click(); a.remove();
+        msg('done', 'ok', outName);
+      }
+    } catch (e) { errMsg(e); }
+    state.busy = false; update();
+  }
+
+  const sel = $('lang');
+  for (const code of Object.keys(L)) {
+    const o = document.createElement('option'); o.value = code; o.textContent = L[code].name; sel.appendChild(o);
+  }
+  sel.value = state.lang;
+  sel.addEventListener('change', () => {
+    state.lang = sel.value;
+    try { localStorage.setItem('vcmi-conv-lang', state.lang); } catch (e) {}
+    applyLang();
+  });
+
+  const drop = $('drop');
+  $('file').addEventListener('change', e => e.target.files[0] && load(e.target.files[0]));
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); });
+  $('go').addEventListener('click', go);
+  applyLang();
+})();
+</script>

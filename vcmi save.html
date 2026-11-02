@@ -1,0 +1,468 @@
+<title>Konwerter zapisów VCMI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow column like an adventure-map scroll panel — file, players, convert, then how-to. */
+:root {
+  --bg: #e9ecf2; --panel: #f7f8fb; --ink: #1b2234; --muted: #5a6378; --line: #c9cfdb;
+  --brass: #8a6416; --brass-soft: #f1e4c4; --ok: #2c7a45; --bad: #b3261e;
+  --display: "Alegreya SC", Georgia, serif; --body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11151f; --panel: #1a2030; --ink: #e7e9ef; --muted: #9aa3b8; --line: #2e3750;
+  --brass: #d9ad55; --brass-soft: #3a3020; --ok: #6cc58a; --bad: #f2867c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11151f; --panel: #1a2030; --ink: #e7e9ef; --muted: #9aa3b8; --line: #2e3750;
+  --brass: #d9ad55; --brass-soft: #3a3020; --ok: #6cc58a; --bad: #f2867c; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 17px/1.5 var(--body); }
+.wrap { max-width: 640px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 22px; }
+h1 { font: 700 2rem/1.1 var(--display); margin: 0; letter-spacing: .01em; text-wrap: balance; }
+h1 span { color: var(--brass); }
+h2 { font: 700 1.2rem/1.2 var(--display); margin: 0; letter-spacing: .03em; }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 60ch; }
+section { display: grid; gap: 12px; }
+.step { font: 500 .72rem var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--brass); }
+.drop { border: 2px dashed var(--line); border-radius: 10px; background: var(--panel); padding: 22px 16px;
+  text-align: center; cursor: pointer; transition: border-color .15s; }
+.drop:hover, .drop.over, .drop:focus-within { border-color: var(--brass); }
+.drop input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.drop strong { display: block; font-size: 1.05rem; }
+.drop small { color: var(--muted); }
+.fileinfo { font: .85rem var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+.players { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.tag { display: inline-block; font: 500 .7rem var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  background: var(--brass-soft); color: var(--brass); padding: 2px 8px; border-radius: 4px; }
+.row { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 12px;
+  padding: 11px 14px; border-top: 1px solid var(--line); cursor: pointer; }
+.row:first-child { border-top: 0; }
+.flag { width: 18px; height: 26px; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
+.who { min-width: 0; }
+.who b { font-weight: 700; }
+.who div { font-size: .88rem; color: var(--muted); overflow-wrap: anywhere; }
+.switch { display: flex; align-items: center; gap: 8px; font-size: .9rem; font-weight: 500; }
+.switch input { width: 20px; height: 20px; accent-color: var(--brass); margin: 0; }
+.was { font: .72rem var(--mono); color: var(--muted); }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+button { font: 700 1rem var(--body); background: var(--brass); color: var(--bg); border: 0; border-radius: 8px;
+  padding: 11px 20px; cursor: pointer; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, .drop:focus-within, .row:focus-within { outline: 2px solid var(--brass); outline-offset: 2px; }
+.msg { font-size: .95rem; margin: 0; }
+.msg.ok { color: var(--ok); } .msg.bad { color: var(--bad); }
+ol { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
+.paths { display: grid; gap: 6px; font-size: .9rem; }
+.paths div { display: grid; grid-template-columns: 80px 1fr; gap: 10px; }
+.paths code { font: .82rem var(--mono); overflow-wrap: anywhere; min-width: 0; }
+.note { font-size: .9rem; color: var(--muted); border-left: 3px solid var(--brass); padding-left: 12px; margin: 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<div class="wrap">
+  <header>
+    <h1>Konwerter zapisów <span>VCMI</span></h1>
+    <p class="lede">Zamienia zapis gry jednoosobowej z Heroes III (VCMI) w zapis wieloosobowy. Wybierasz, którymi kolorami grają ludzie, a reszta zostaje przy komputerze. Plik nie opuszcza Twojego urządzenia.</p>
+  </header>
+
+  <section>
+    <div class="step">Krok 1 · zapis gry</div>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".vsgm1,.VSGM1">
+      <strong>Wybierz plik .vsgm1</strong>
+      <small>albo upuść go tutaj · VCMI 1.7 i nowsze</small>
+    </label>
+    <div class="fileinfo" id="fileinfo">Nie wybrano pliku. Poniżej przykładowa lista graczy.</div>
+  </section>
+
+  <section>
+    <div class="step">Krok 2 · kto gra człowiekiem</div>
+    <div class="players" id="players"></div>
+  </section>
+
+  <section>
+    <div class="step">Krok 3 · konwersja</div>
+    <div class="actions">
+      <button id="go" disabled>Konwertuj i zapisz</button>
+      <span id="count" class="was"></span>
+    </div>
+    <p class="msg" id="msg" hidden></p>
+  </section>
+
+  <section>
+    <h2>Jak zagrać w przekonwertowany zapis</h2>
+    <ol>
+      <li>Wrzuć nowy plik <code>…_MP.vsgm1</code> do folderu zapisów VCMI (jeśli pobrał się jako .zip, najpierw go rozpakuj).</li>
+      <li>W VCMI wybierz <b>Gra wieloosobowa</b> (hot-seat, LAN albo online), utwórz pokój i dopiero wtedy <b>Wczytaj grę</b>.</li>
+      <li>Gdy znajomi dołączą, kolory-ludzi dostają się graczom po kolei. Host może je zamienić, klikając flagę przy kolorze.</li>
+    </ol>
+    <div class="paths">
+      <div><b>Windows</b><code>Dokumenty\My Games\vcmi\Saves</code></div>
+      <div><b>Linux</b><code>~/.local/share/vcmi/Saves</code></div>
+      <div><b>macOS</b><code>~/Library/Application Support/vcmi/Saves</code></div>
+      <div><b>Android</b><code>Android/data/is.xyz.vcmi/files/vcmi-data/Saves</code></div>
+    </div>
+    <p class="note">Wszyscy gracze muszą mieć tę samą wersję VCMI i te same mody. Oryginalny zapis zostaje nietknięty, a narzędzie tworzy nowy plik obok.</p>
+  </section>
+</div>
+<script>
+// VCMI save converter core: single player save -> multiplayer save.
+// Supports legacy raw saves (VCMI 1.7.x) and chunked saves (VCMI 1.8 / develop).
+(function (global) {
+  'use strict';
+
+  const COLORS = ['Czerwony', 'Niebieski', 'Brązowy', 'Zielony', 'Pomarańczowy', 'Fioletowy', 'Turkusowy', 'Różowy'];
+  const COLOR_HEX = ['#e2312b', '#2f5fd8', '#a77a4c', '#2f9e44', '#f08c00', '#8e44ad', '#12a4a4', '#e64980'];
+
+  class Reader {
+    constructor(buf, pos) { this.b = buf; this.p = pos; }
+    byte() {
+      if (this.p >= this.b.length) throw new Error('eof');
+      return this.b[this.p++];
+    }
+    // VCMI BinarySerializer::saveEncodedInteger
+    int() {
+      let value = 0, mul = 1;
+      for (let i = 0; i < 10; i++) {
+        const b = this.byte();
+        if (b & 0x80) { value += (b & 0x7f) * mul; mul *= 128; }
+        else {
+          value += (b & 0x3f) * mul;
+          return (b & 0x40) ? -value : value;
+        }
+      }
+      throw new Error('bad int');
+    }
+    // strings are deduplicated: negative length = reference to earlier string
+    str(asciiOnly) {
+      const n = this.int();
+      if (n === 0) return '';
+      if (n < 0) return null; // back-reference, content unknown here
+      if (n > 4096 || this.p + n > this.b.length) throw new Error('bad str');
+      const bytes = this.b.subarray(this.p, this.p + n);
+      this.p += n;
+      if (asciiOnly) {
+        for (const c of bytes) if (c < 0x20 || c > 0x7e) throw new Error('bad ident');
+      }
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    }
+  }
+
+  function encodeInt(value) {
+    const out = [];
+    let u = Math.abs(value);
+    while (u > 0x3f) { out.push((u % 128) | 0x80); u = Math.floor(u / 128); }
+    let last = u & 0x3f;
+    if (value < 0) last |= 0x40;
+    out.push(last);
+    return out;
+  }
+
+  // ResourceSet layouts seen in different save versions
+  const HANDICAP_FORMATS = [
+    function vector(r) { const n = r.int(); if (n < 0 || n > 32) throw 0; for (let i = 0; i < n; i++) r.int(); },
+    function sparseMap(r) {
+      const n = r.int(); if (n < 0 || n > 32) throw 0;
+      let prev = -1;
+      for (let i = 0; i < n; i++) { const k = r.int(); if (k <= prev || k > 63) throw 0; prev = k; r.int(); }
+    },
+    function array8(r) { for (let i = 0; i < 8; i++) r.int(); },
+  ];
+
+  function plausibleStartTime(t) { return t >= 946684800 && t <= 4102444800; }
+
+  // Parses map<PlayerColor, PlayerSettings> entries starting at pos. Returns list or null.
+  function parseEntries(buf, pos, remaining, prevKey) {
+    if (remaining === 0) {
+      try {
+        const r = new Reader(buf, pos);
+        if (!plausibleStartTime(r.int())) return null;
+        return [];
+      } catch (e) { return null; }
+    }
+    let r, key, entry;
+    try {
+      r = new Reader(buf, pos);
+      key = r.int();
+      if (key <= prevKey || key > 7) return null;
+      const castle = r.str(true), hero = r.str(true), portrait = r.str(true), heroText = r.str(true);
+      const bonus = r.int();
+      if (bonus < -1 || bonus > 2) return null;
+      if (r.int() !== key) return null;
+      entry = { color: key, castle, hero, portrait, heroText, start: pos };
+    } catch (e) { return null; }
+    const afterColor = r.p;
+
+    for (const fmt of HANDICAP_FORMATS) {
+      try {
+        const rr = new Reader(buf, afterColor);
+        fmt(rr);
+        const inc = rr.int(), gro = rr.int();
+        if (inc < 0 || inc > 10000 || gro < 0 || gro > 10000) continue;
+        const name = rr.str(false);
+        const setStart = rr.p;
+        const cnt = rr.int();
+        if (cnt < 0 || cnt > 8) continue;
+        const ids = [];
+        for (let i = 0; i < cnt; i++) { const id = rr.int(); if (id < 1 || id > 64) throw 0; ids.push(id); }
+        const comp = rr.byte();
+        if (comp > 1) continue;
+        const end = rr.p;
+        const rest = parseEntries(buf, end, remaining - 1, key);
+        if (!rest) continue;
+        return [Object.assign(entry, { name, setStart, setEnd: end, ids, compOnly: comp === 1, human: ids.length > 0 }), ...rest];
+      } catch (e) { /* try next layout */ }
+    }
+    return null;
+  }
+
+  // Finds StartInfo (mode, difficulty, playerInfos...) inside a serialized block.
+  function findStartInfo(buf, from) {
+    for (let s = from || 0; s < buf.length - 8; s++) {
+      const mode = buf[s];
+      if (mode > 2) continue;
+      const diff = buf[s + 1];
+      if (diff > 4) continue;
+      const n = buf[s + 2];
+      if (n < 1 || n > 8) continue;
+      const players = parseEntries(buf, s + 3, n, -1);
+      if (players) return { offset: s, mode, difficulty: diff, players };
+    }
+    return null;
+  }
+
+  function u32(buf, p) { return (buf[p] | (buf[p + 1] << 8) | (buf[p + 2] << 16) | (buf[p + 3] << 24)) >>> 0; }
+  function putU32(arr, v) { arr.push(v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff); }
+  function ascii(buf, p, n) { return String.fromCharCode(...buf.subarray(p, p + n)); }
+
+  async function zlibInflate(data) {
+    const ds = new DecompressionStream('deflate');
+    const out = await new Response(new Blob([data]).stream().pipeThrough(ds)).arrayBuffer();
+    return new Uint8Array(out);
+  }
+  async function zlibDeflate(data) {
+    const cs = new CompressionStream('deflate');
+    const out = await new Response(new Blob([data]).stream().pipeThrough(cs)).arrayBuffer();
+    return new Uint8Array(out);
+  }
+
+  // Reads a save and returns a description used both for display and for converting.
+  async function analyze(fileBytes) {
+    const buf = fileBytes instanceof Uint8Array ? fileBytes : new Uint8Array(fileBytes);
+    if (buf.length < 16 || ascii(buf, 0, 4) !== 'VCMI') throw new Error('To nie jest zapis gry VCMI (brak nagłówka "VCMI").');
+    const version = u32(buf, 4);
+
+    if (ascii(buf, 8, 7) === 'VCMISVG') {
+      const si = findStartInfo(buf, 15);
+      if (!si) throw new Error('Nie udało się znaleźć listy graczy w zapisie. Możliwe, że wersja VCMI jest zbyt stara (obsługiwane: 1.7 i nowsze).');
+      return { format: 'legacy', version, buf, si, meta: null };
+    }
+
+    if (ascii(buf, 8, 4) === 'META') {
+      const chunks = [];
+      let p = 8;
+      for (const id of ['META', 'HEAD', 'GAME']) {
+        if (ascii(buf, p, 4) !== id) throw new Error('Uszkodzony zapis: brak sekcji ' + id + '.');
+        const csize = u32(buf, p + 4), usize = u32(buf, p + 8);
+        const raw = buf.subarray(p + 12, p + 12 + csize);
+        if (raw.length !== csize) throw new Error('Plik zapisu jest ucięty.');
+        chunks.push({ id, start: p, end: p + 12 + csize, raw, usize });
+        p += 12 + csize;
+      }
+      const metaBytes = await zlibInflate(chunks[0].raw);
+      const meta = JSON.parse(new TextDecoder().decode(metaBytes));
+      const head = await zlibInflate(chunks[1].raw);
+      const si = findStartInfo(head, 0);
+      if (!si) throw new Error('Nie udało się znaleźć listy graczy w zapisie.');
+      return { format: 'chunked', version, buf, si, meta, chunks, head, tail: buf.subarray(p) };
+    }
+
+    throw new Error('Nieznany format zapisu VCMI.');
+  }
+
+  // Rewrites connectedPlayerIDs (+compOnly) so that chosen colors are human.
+  function patchPlayers(block, players, humanColors) {
+    const edits = [];
+    let nextId = 1;
+    for (const pl of players) {
+      const human = humanColors.includes(pl.color);
+      const bytes = [];
+      if (human) bytes.push(...encodeInt(1), ...encodeInt(nextId++));
+      else bytes.push(...encodeInt(0));
+      bytes.push(0); // compOnly = false (true would force AI on load)
+      edits.push({ start: pl.setStart, end: pl.setEnd, bytes });
+    }
+    edits.sort((a, b) => a.start - b.start);
+    const parts = [];
+    let pos = 0;
+    for (const e of edits) {
+      parts.push(block.subarray(pos, e.start), Uint8Array.from(e.bytes));
+      pos = e.end;
+    }
+    parts.push(block.subarray(pos));
+    return concat(parts);
+  }
+
+  function concat(parts) {
+    const total = parts.reduce((s, x) => s + x.length, 0);
+    const out = new Uint8Array(total);
+    let p = 0;
+    for (const x of parts) { out.set(x, p); p += x.length; }
+    return out;
+  }
+
+  async function convert(info, humanColors) {
+    if (humanColors.length < 2) throw new Error('Wybierz co najmniej dwóch graczy-ludzi.');
+    if (info.format === 'legacy') return patchPlayers(info.buf, info.si.players, humanColors);
+
+    const head = patchPlayers(info.head, info.si.players, humanColors);
+    const meta = JSON.parse(JSON.stringify(info.meta));
+    meta.game = meta.game || {};
+    meta.game.humanPlayers = humanColors.length;
+    if (meta.game.mode === 'tutorial') meta.game.mode = 'single';
+    const metaBytes = new TextEncoder().encode(JSON.stringify(meta, null, '\t'));
+
+    const parts = [info.buf.subarray(0, 8)];
+    for (const [id, data] of [['META', metaBytes], ['HEAD', head]]) {
+      const comp = await zlibDeflate(data);
+      const hdr = [...id].map(c => c.charCodeAt(0));
+      putU32(hdr, comp.length);
+      putU32(hdr, data.length);
+      parts.push(Uint8Array.from(hdr), comp);
+    }
+    const game = info.chunks[2];
+    parts.push(info.buf.subarray(game.start, game.end), info.tail);
+    return concat(parts);
+  }
+
+  const api = { analyze, convert, findStartInfo, encodeInt, COLORS, COLOR_HEX };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else global.VcmiConv = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script><script>
+(function () {
+  const C = window.VcmiConv;
+  const $ = id => document.getElementById(id);
+  const state = { info: null, name: '', humans: [], sample: true };
+
+  const SAMPLE = [
+    { color: 0, name: 'Gracz', human: true }, { color: 1, name: 'Komputer', human: false },
+    { color: 3, name: 'Komputer', human: false },
+  ];
+
+  function render() {
+    const list = state.info ? state.info.si.players : SAMPLE;
+    const box = $('players');
+    box.textContent = '';
+    if (state.sample) {
+      const r = document.createElement('div');
+      r.className = 'row'; r.style.cursor = 'default';
+      r.innerHTML = '<span></span><span class="tag">Przykład</span><span></span>';
+      box.appendChild(r);
+    }
+    for (const p of list) {
+      const row = document.createElement('label');
+      row.className = 'row';
+      const flag = document.createElement('span');
+      flag.className = 'flag'; flag.style.background = C.COLOR_HEX[p.color];
+      const who = document.createElement('span'); who.className = 'who';
+      const b = document.createElement('b'); b.textContent = C.COLORS[p.color];
+      const d = document.createElement('div');
+      d.textContent = (p.name ? p.name + ' · ' : '') + 'teraz: ' + (p.human ? 'człowiek' : 'komputer');
+      who.append(b, d);
+      const sw = document.createElement('span'); sw.className = 'switch';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'p' + p.color;
+      cb.checked = state.humans.includes(p.color);
+      cb.disabled = state.sample;
+      cb.addEventListener('change', () => {
+        state.humans = cb.checked ? [...state.humans, p.color].sort() : state.humans.filter(c => c !== p.color);
+        update();
+      });
+      sw.append(cb, document.createTextNode('Człowiek'));
+      row.append(flag, who, sw);
+      box.appendChild(row);
+    }
+    update();
+  }
+
+  function update() {
+    const n = state.humans.length;
+    $('count').textContent = state.sample ? '' : (n < 2 ? 'Zaznacz co najmniej 2 kolory' : n + ' graczy-ludzi');
+    $('go').disabled = state.sample || n < 2;
+  }
+
+  function msg(text, kind) { const m = $('msg'); m.hidden = !text; m.textContent = text || ''; m.className = 'msg ' + (kind || ''); }
+
+  async function load(file) {
+    msg('');
+    try {
+      const info = await C.analyze(new Uint8Array(await file.arrayBuffer()));
+      state.info = info; state.sample = false; state.name = file.name;
+      const pl = info.si.players;
+      state.humans = pl.filter(p => p.human).map(p => p.color);
+      if (state.humans.length < 2) {
+        const next = pl.find(p => !p.human);
+        if (next) state.humans = [...state.humans, next.color].sort();
+      }
+      const map = info.meta && info.meta.game ? (info.meta.game.mapFile || '').replace(/^Maps\//, '') : '';
+      const day = info.meta && info.meta.game && info.meta.game.day;
+      $('fileinfo').textContent = file.name + ' · ' + pl.length + ' graczy' + (map ? ' · mapa ' + map : '') + (day ? ' · dzień ' + day : '');
+      render();
+    } catch (e) {
+      state.info = null; state.sample = true; state.humans = [];
+      $('fileinfo').textContent = file.name;
+      render();
+      msg(e.message || String(e), 'bad');
+    }
+  }
+
+  // minimal ZIP (stored) so the file can travel through hosts that only allow known extensions
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(d) { let c = 0xffffffff; for (let i = 0; i < d.length; i++) c = CRC[(c ^ d[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+  function zip(name, data) {
+    const nm = new TextEncoder().encode(name), crc = crc32(data), n = data.length;
+    const le = (a, v, b) => { for (let i = 0; i < b; i++) a.push((v >>> (8 * i)) & 0xff); };
+    const loc = []; le(loc, 0x04034b50, 4); le(loc, 20, 2); le(loc, 0x800, 2); le(loc, 0, 2); le(loc, 0, 4); le(loc, crc, 4); le(loc, n, 4); le(loc, n, 4); le(loc, nm.length, 2); le(loc, 0, 2);
+    const cen = []; le(cen, 0x02014b50, 4); le(cen, 20, 2); le(cen, 20, 2); le(cen, 0x800, 2); le(cen, 0, 2); le(cen, 0, 4); le(cen, crc, 4); le(cen, n, 4); le(cen, n, 4); le(cen, nm.length, 2); le(cen, 0, 2); le(cen, 0, 2); le(cen, 0, 2); le(cen, 0, 2); le(cen, 0, 4); le(cen, 0, 4);
+    const off = loc.length + nm.length + n;
+    const end = []; le(end, 0x06054b50, 4); le(end, 0, 2); le(end, 0, 2); le(end, 1, 2); le(end, 1, 2); le(end, cen.length + nm.length, 4); le(end, off, 4); le(end, 0, 2);
+    return new Blob([Uint8Array.from(loc), nm, data, Uint8Array.from(cen), nm, Uint8Array.from(end)]);
+  }
+
+  let downloads = null;
+  if (window.claude && window.claude.use) window.claude.use('downloads').then(d => { downloads = d; }, () => {});
+
+  async function go() {
+    msg('Konwertuję…');
+    $('go').disabled = true;
+    try {
+      const out = await C.convert(state.info, state.humans);
+      const base = state.name.replace(/\.vsgm1$/i, '');
+      const outName = base + '_MP.vsgm1';
+      if (downloads) {
+        try {
+          await downloads.save({ filename: base + '_MP.zip', data: zip(outName, out) });
+          msg('Zapisano ' + base + '_MP.zip. Rozpakuj go i wrzuć ' + outName + ' do folderu Saves.', 'ok');
+        } catch (e) {
+          msg(e && e.code === 'declined' ? 'Anulowano zapis pliku.' : 'Nie udało się zapisać pliku (' + (e && e.code || e) + ').', 'bad');
+        }
+      } else {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([out]));
+        a.download = outName;
+        document.body.appendChild(a); a.click(); a.remove();
+        msg('Gotowe: ' + outName + '. Wrzuć go do folderu Saves.', 'ok');
+      }
+    } catch (e) { msg(e.message || String(e), 'bad'); }
+    update();
+  }
+
+  const drop = $('drop');
+  $('file').addEventListener('change', e => e.target.files[0] && load(e.target.files[0]));
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); });
+  $('go').addEventListener('click', go);
+  render();
+})();
+</script>
